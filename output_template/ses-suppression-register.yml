@@ -1,0 +1,534 @@
+Parameters:
+  IdentityDomain:
+    Type: CommaDelimitedList
+  IsNoticeBounce:
+    Type: String
+    Default: "True"
+    AllowedValues:
+      - "True"
+      - "False"
+  IsNoticeComplaint:
+    Type: String
+    Default: "False"
+    AllowedValues:
+      - "True"
+      - "False"
+  IsBounceHeaders:
+    Type: String
+    Default: "False"
+    AllowedValues:
+      - "True"
+      - "False"
+  IsComplaintHeaders:
+    Type: String
+    Default: "False"
+    AllowedValues:
+      - "True"
+      - "False"
+Resources:
+  SQSQueue7674CD17:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ses-suppression-list-queue
+      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 30
+    Metadata:
+      aws:cdk:path: ses-suppression-register/SQSQueue/Resource
+  SQSQueuePolicy4691EEED:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: SNSTopicBCCC5DD8
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - SQSQueue7674CD17
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: SQSQueue7674CD17
+    Metadata:
+      aws:cdk:path: ses-suppression-register/SQSQueue/Policy/Resource
+  SQSQueuesessuppressionregisterSNSTopicB53DDD35E71AAD6E:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn:
+        Ref: SNSTopicBCCC5DD8
+      Endpoint:
+        Fn::GetAtt:
+          - SQSQueue7674CD17
+          - Arn
+    Metadata:
+      aws:cdk:path: ses-suppression-register/SQSQueue/sessuppressionregisterSNSTopicB53DDD35/Resource
+  SNSTopicBCCC5DD8:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ses-suppression-list-topic
+      TopicName: ses-suppression-list-topic
+    Metadata:
+      aws:cdk:path: ses-suppression-register/SNSTopic/Resource
+  SingletonLambda825ec7fe5f19487d87a47e894a9af959ServiceRoleD2CF03A8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ses-suppression-register/SingletonLambda825ec7fe5f19487d87a47e894a9af959/ServiceRole/Resource
+  SingletonLambda825ec7fe5f19487d87a47e894a9af959ServiceRoleDefaultPolicy54718DA6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sts:*
+              - ses:GetIdentity*
+              - ses:SetIdentity*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: SingletonLambda825ec7fe5f19487d87a47e894a9af959ServiceRoleDefaultPolicy54718DA6
+      Roles:
+        - Ref: SingletonLambda825ec7fe5f19487d87a47e894a9af959ServiceRoleD2CF03A8
+    Metadata:
+      aws:cdk:path: ses-suppression-register/SingletonLambda825ec7fe5f19487d87a47e894a9af959/ServiceRole/DefaultPolicy/Resource
+  SingletonLambda825ec7fe5f19487d87a47e894a9af95912DC7CC9:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: >-
+          import logging
+
+          import boto3
+
+          from distutils.util import strtobool
+
+          import cfnresponse
+
+          import sys
+
+
+          logger = logging.getLogger()
+
+          logger.setLevel(logging.INFO)
+
+
+          ses = boto3.client('ses')
+
+
+          def set_notifications(props, identity):
+              logging.info("[START] set notifications: {}".format(identity))
+              responce_data = {}
+              for notification_type in ["Bounce", "Complaint"]:
+                  topic = props.get(f"{notification_type}Topic")
+                  kwargs = {"Identity": identity, "NotificationType": notification_type}
+                  if topic:
+                      kwargs["SnsTopic"] = topic
+                  responce_data[f"Notice{notification_type}"] = ses.set_identity_notification_topic(**kwargs)
+
+                  if topic:
+                      kwargs.pop("SnsTopic")
+                      kwargs["Enabled"] = bool(strtobool(props.get(f"HeadersIn{notification_type}NotificationsEnabled")))
+                      responce_data[f"Headers{notification_type}"] = ses.set_identity_headers_in_notifications_enabled(**kwargs)
+              logging.info("[SUCCESS] set notifications: {}".format(identity))
+              return responce_data
+
+          def clear_notifications(props, identity):
+              logging.info("[START] clear notifications: {}".format(identity))
+              responce_data = {}
+              for notification_type in ["Bounce", "Complaint"]:
+                  responce_data[f"Notice{notification_type}"] = ses.set_identity_notification_topic(
+                      Identity=identity, NotificationType=notification_type
+                  )
+              logging.info("[SUCCESS] clear notifications: {}".format(identity))
+              return responce_data
+
+          def on_create(event):
+              props = event["ResourceProperties"]
+              logging.info("create new resource with props {}".format(props))
+              return {identity: set_notifications(props, identity) for identity in props['Identities']}
+
+          def on_update(event):
+              physical_id = event["PhysicalResourceId"]
+              props = event["ResourceProperties"]
+              old_props = event["OldResourceProperties"]
+
+              set_identities_list = list(set(props['Identities']) - set(old_props['Identities']))
+              clear_identities_list = list(set(old_props['Identities']) - set(props['Identities']))
+              logging.info("update resource {} with props {}".format(physical_id, props))
+              
+              set_identities_dict = {identity: set_notifications(props, identity) for identity in set_identities_list}
+              clear_identities_dict = {identity: clear_notifications(props, identity) for identity in clear_identities_list}
+
+              return {'set_identities': set_identities_dict, 'clear_identities': clear_identities_dict}
+
+          def on_delete(event):
+              physical_id = event["PhysicalResourceId"]
+              props = event["ResourceProperties"]
+              logging.info("delete resource {}".format(physical_id))
+              return {identity: clear_notifications(props, identity) for identity in props['Identities']}
+
+          def on_event(event, context):
+              logging.info('cfn_event:{}'.format(event))
+              logging.info('context:{}'.format(context))
+              request_type = event['RequestType']
+
+              if request_type == 'Create': return on_create(event)
+              if request_type == 'Update': return on_update(event)
+              if request_type == 'Delete': return on_delete(event)
+              raise Exception("Invalid request type: {}".format(request_type))
+
+          def handler(event, context):
+              response_data = on_event(event, context)
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+
+          def main():
+              import json
+              context = {}
+
+              args = sys.argv
+              if (len(args) == 2):
+                  aws_profile = args[1]
+                  session = boto3.Session(profile_name=aws_profile)
+                  global ses
+                  ses = session.client('ses')
+                  logger.info('Use .aws/credential info. profile name [{}]'.format(aws_profile))
+
+              with open('test_event/set_identity_notifications.json') as f:
+                  event = json.load(f)
+              on_event(event, context)
+
+          if __name__ == "__main__":
+              main()
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - SingletonLambda825ec7fe5f19487d87a47e894a9af959ServiceRoleD2CF03A8
+          - Arn
+      Runtime: python3.7
+      FunctionName: set_identity_notifications
+      MemorySize: 128
+      Timeout: 5
+    DependsOn:
+      - SingletonLambda825ec7fe5f19487d87a47e894a9af959ServiceRoleDefaultPolicy54718DA6
+      - SingletonLambda825ec7fe5f19487d87a47e894a9af959ServiceRoleD2CF03A8
+    Metadata:
+      aws:cdk:path: ses-suppression-register/SingletonLambda825ec7fe5f19487d87a47e894a9af959/Resource
+  ProvideSetIdentityNotifications:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - SingletonLambda825ec7fe5f19487d87a47e894a9af95912DC7CC9
+          - Arn
+      Identities:
+        Ref: IdentityDomain
+      BounceTopic:
+        Fn::If:
+          - ConditionIsBounce
+          - Ref: SNSTopicBCCC5DD8
+          - ""
+      ComplaintTopic:
+        Fn::If:
+          - ConditionIsComplaint
+          - Ref: SNSTopicBCCC5DD8
+          - ""
+      HeadersInBounceNotificationsEnabled:
+        Fn::If:
+          - ConditionIsBounceHeaders
+          - "True"
+          - "False"
+      HeadersInComplaintNotificationsEnabled:
+        Fn::If:
+          - ConditionIsComplaintHeaders
+          - "True"
+          - "False"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ses-suppression-register/ProvideSetIdentityNotifications/Default
+  lambdaPolicy2EE91DF6:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ses:*Suppressed*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      Description: ""
+      ManagedPolicyName: lambdaPolicy
+      Path: /
+    Metadata:
+      aws:cdk:path: ses-suppression-register/lambdaPolicy/Resource
+  lambdaRoleC844FDB1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
+        - Ref: lambdaPolicy2EE91DF6
+      RoleName: lambdaRole
+    Metadata:
+      aws:cdk:path: ses-suppression-register/lambdaRole/Resource
+  lambdaRoleDefaultPolicyA63A8A92:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SQSQueue7674CD17
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: lambdaRoleDefaultPolicyA63A8A92
+      Roles:
+        - Ref: lambdaRoleC844FDB1
+    Metadata:
+      aws:cdk:path: ses-suppression-register/lambdaRole/DefaultPolicy/Resource
+  LambdaFunctionBF21E41F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: >-
+          import logging
+
+          import boto3
+
+          import json
+
+          from botocore.exceptions import ClientError
+
+          import sys
+
+
+          logger = logging.getLogger()
+
+          logger.setLevel(logging.INFO)
+
+
+          sesv2 = boto3.client('sesv2')
+
+
+          notification_type_recipients_dict = {
+              'Bounce': 'bouncedRecipients',
+              'Complaint': 'complainedRecipients'
+          }
+
+
+          def is_registered_suppresion_list(email_address, notification_type):
+              response = {}
+              try:
+                  response = sesv2.get_suppressed_destination(EmailAddress=email_address)
+              except ClientError as e:
+                  if e.response['Error']['Code'] == 'NotFoundException':
+                      return False
+                  else:
+                      raise e
+
+              if response:
+                  logger.info('[{}] {} is already registered. response is below\n{}'.format(notification_type,email_address, response))
+                  return True
+
+
+          def lambda_handler(event, context):
+              logging.info('sqs_event:{}'.format(event))
+           
+              for record in event['Records']:
+                  sqs_message_body = json.loads(record['body'])
+                  logging.info('sqs_message_body:{}'.format(sqs_message_body))
+                  ses_info = json.loads(sqs_message_body['Message'])
+                  
+                  logging.info('ses_info:{}'.format(ses_info))
+                  notification_type = ses_info['notificationType']
+                  if ses_info['notificationType'] not in ['Bounce', 'Complaint']:
+                      return {'statusCode': 200, 'body': '[SKIP][{}] is not notification from SES.'.format(notification_type)}
+                  
+                  logging.info('debug:{}'.format(ses_info[notification_type.lower()][notification_type_recipients_dict[notification_type]]))
+                  for recipient in ses_info[notification_type.lower()][notification_type_recipients_dict[notification_type]]:
+                      logger.info('mail:{}'.format(recipient['emailAddress']))
+
+                      if recipient['emailAddress'] == 'bounce@simulator.amazonses.com':
+                          logger.info('[SKIP][{}] {} is test mail address.'.format(notification_type,recipient['emailAddress']))
+                          continue
+                      if is_registered_suppresion_list(recipient['emailAddress'], notification_type):
+                          continue
+
+                      logger.info('[{}] {} is not registered to account level suppresion list. So call put_suppressed_destination'.format(notification_type,recipient['emailAddress']))
+                      put_suppressed_res = sesv2.put_suppressed_destination(
+                          EmailAddress=recipient['emailAddress'],
+                          Reason=notification_type.upper()
+                      )
+                      logger.info('[{}] {} is registered to account level suppresion list. response is below\n{}'.format(notification_type,recipient['emailAddress'], put_suppressed_res))
+                      
+              logger.info('got event {}'.format("OK"))
+              return {
+                  'statusCode': 200,
+                  'body': 'SES suppression-auto-register finished.'
+              }
+
+          def main():
+              context = {}
+
+              args = sys.argv
+              if (len(args) == 2):
+                  aws_profile = args[1]
+                  session = boto3.Session(profile_name=aws_profile)
+                  global sesv2
+                  sesv2 = session.client('sesv2')
+                  logger.info('Use .aws/credential info. profile name [{}]'.format(aws_profile))
+
+              with open('test_event/ses_suppression_list_auto_register.json') as f:
+                  event = json.load(f)
+              lambda_handler(event, context)
+
+          if __name__ == "__main__":
+              main()
+      Handler: index.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - lambdaRoleC844FDB1
+          - Arn
+      Runtime: python3.7
+      FunctionName: ses_suppression_list_auto_register
+      MemorySize: 128
+      Timeout: 5
+    DependsOn:
+      - lambdaRoleDefaultPolicyA63A8A92
+      - lambdaRoleC844FDB1
+    Metadata:
+      aws:cdk:path: ses-suppression-register/LambdaFunction/Resource
+  LambdaFunctionSqsEventSourcesessuppressionregisterSQSQueue380538365C759A8C:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::GetAtt:
+          - SQSQueue7674CD17
+          - Arn
+      FunctionName:
+        Ref: LambdaFunctionBF21E41F
+      BatchSize: 10
+    Metadata:
+      aws:cdk:path: ses-suppression-register/LambdaFunction/SqsEventSource:sessuppressionregisterSQSQueue38053836/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=1.27.0,@aws-cdk/assets=1.27.0,@aws-cdk/aws-apigateway=1.27.0,@aws-cdk/aws-applicationautoscaling=1.27.0,@aws-cdk/aws-autoscaling=1.27.0,@aws-cdk/aws-autoscaling-common=1.27.0,@aws-cdk/aws-autoscaling-hooktargets=1.27.0,@aws-cdk/aws-certificatemanager=1.27.0,@aws-cdk/aws-cloudformation=1.27.0,@aws-cdk/aws-cloudfront=1.27.0,@aws-cdk/aws-cloudwatch=1.27.0,@aws-cdk/aws-dynamodb=1.27.0,@aws-cdk/aws-ec2=1.27.0,@aws-cdk/aws-ecr=1.27.0,@aws-cdk/aws-ecr-assets=1.27.0,@aws-cdk/aws-ecs=1.27.0,@aws-cdk/aws-elasticloadbalancing=1.27.0,@aws-cdk/aws-elasticloadbalancingv2=1.27.0,@aws-cdk/aws-events=1.27.0,@aws-cdk/aws-glue=1.27.0,@aws-cdk/aws-iam=1.27.0,@aws-cdk/aws-kinesis=1.27.0,@aws-cdk/aws-kms=1.27.0,@aws-cdk/aws-lambda=1.27.0,@aws-cdk/aws-lambda-event-sources=1.27.0,@aws-cdk/aws-logs=1.27.0,@aws-cdk/aws-route53=1.27.0,@aws-cdk/aws-route53-targets=1.27.0,@aws-cdk/aws-s3=1.27.0,@aws-cdk/aws-s3-assets=1.27.0,@aws-cdk/aws-s3-notifications=1.27.0,@aws-cdk/aws-sam=1.27.0,@aws-cdk/aws-secretsmanager=1.27.0,@aws-cdk/aws-servicediscovery=1.27.0,@aws-cdk/aws-ses=1.27.0,@aws-cdk/aws-sns=1.27.0,@aws-cdk/aws-sns-subscriptions=1.27.0,@aws-cdk/aws-sqs=1.27.0,@aws-cdk/aws-ssm=1.27.0,@aws-cdk/aws-stepfunctions=1.27.0,@aws-cdk/aws-stepfunctions-tasks=1.27.0,@aws-cdk/core=1.27.0,@aws-cdk/custom-resources=1.27.0,@aws-cdk/cx-api=1.27.0,@aws-cdk/region-info=1.27.0,jsii-runtime=Python/3.8.2
+    Condition: CDKMetadataAvailable
+Conditions:
+  ConditionIsBounce:
+    Fn::Equals:
+      - Ref: IsNoticeBounce
+      - "True"
+  ConditionIsComplaint:
+    Fn::Equals:
+      - Ref: IsNoticeComplaint
+      - "True"
+  ConditionIsBounceHeaders:
+    Fn::Equals:
+      - Ref: IsBounceHeaders
+      - "True"
+  ConditionIsComplaintHeaders:
+    Fn::Equals:
+      - Ref: IsComplaintHeaders
+      - "True"
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,11 @@
+{
+  "app": "python app.py",
+  "context": {
+    "evaluation": {
+      "region": "us-west-2"
+    },
+    "commercial": {
+      "region": "us-east-1"
+    }
+  }
+}

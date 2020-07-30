@@ -1,0 +1,9 @@
+.sonarlint
+.vscode
+__pycache__
+*.pyc
+cdk.out
+*copy.*
+*bak.*
+*.bak
+*.egg-info/

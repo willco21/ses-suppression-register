@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "messageId": "a7eaf472-6af9-4d91-8623-1577457a9f98",
+      "receiptHandle": "AQEBWyQg/bCerQGCqwnP2G28yqyE2mrkFBxF4fwutYinOpKsHyVsQbLGMrUIgf43RFP8sdAOxNLss01dd6WK/YD9+6KpK13LDizWBmVqYNqH2Szj5G89nCYzYlaHzr8yPndoiRjLwzhG4yjW0GgiRlBmIK+GsLtvbnGp4LsQN0zCQzLjOGoDmlXxAwb6LKDqluIufJWCQlinLONzZ8EBeu/G8JacrBZ3B1PuWUIk6VnWsHbjJWKOXKRPEOCqL16ahaaz01lHy2/9yh2pQRfB+yvRdmj/7JKD8Y8LzERDJikY6HTQ85s5GJ6wvp8X+YcuPflz0qwOfhutvNyIPnMMeW9yHLCUaZsSjYzz6XmAkvIbYdvpknYgV8u3lA02qHc4Cs0W6r+dORqIE8rjHv5LkkCSuSG8z9PzCVBU1z4PpH5cyG4=",
+      "body": "{\"Type\" : \"Notification\",\"MessageId\" : \"c3fb643d-b4a4-5812-a389-328d6cd368a2\",\"TopicArn\" : \"arn:aws:sns:us-west-2:535996888546:willco21-ses-bounce-complaint-test\",\"Message\" : \"{\\\"notificationType\\\":\\\"Bounce\\\",\\\"bounce\\\":{\\\"bounceType\\\":\\\"Permanent\\\",\\\"bounceSubType\\\":\\\"General\\\",\\\"bouncedRecipients\\\":[{\\\"emailAddress\\\":\\\"hoge@example.com\\\",\\\"action\\\":\\\"failed\\\",\\\"status\\\":\\\"5.1.1\\\",\\\"diagnosticCode\\\":\\\"smtp; 550 5.1.1 user unknown\\\"}],\\\"timestamp\\\":\\\"2020-02-02T14:01:27.168Z\\\",\\\"feedbackId\\\":\\\"010101700634c740-12b516a5-e5ba-4dd0-989e-640d71473c09-000000\\\",\\\"remoteMtaIp\\\":\\\"34.198.234.241\\\",\\\"reportingMTA\\\":\\\"dsn; a27-188.smtp-out.us-west-2.amazonses.com\\\"},\\\"mail\\\":{\\\"timestamp\\\":\\\"2020-02-02T14:01:26.000Z\\\",\\\"source\\\":\\\"willco21_hi@gmail.com\\\",\\\"sourceArn\\\":\\\"arn:aws:ses:us-west-2:535996888546:identity/willco21_hi@gmail.com\\\",\\\"sourceIp\\\":\\\"54.240.230.242\\\",\\\"sendingAccountId\\\":\\\"535996888546\\\",\\\"messageId\\\":\\\"010101700634c2be-6b2d2ba7-19d4-4b60-91cd-31bb484590b8-000000\\\",\\\"destination\\\":[\\\"hoge@example.com\\\"]}}\",\"Timestamp\" : \"2020-02-02T14:01:27.192Z\",\"SignatureVersion\" : \"1\",\"Signature\" : \"hs2nDFb/3EeiQj2OS2X3PY3+vizFFHQ38pvQKEhkpe3cJz9bfifPB5SWPJAI7m7mBQjS10f31CchPZjU18fG+ZogcrzZTNyVO6+2H6qWNXIpG2vi+rIf5nyK8gd6gfXWPuFvlGYd7BtAPsy87dPTT4QUNLNbVY/cEUqzmqvZTXHbD/wBQ4pXprgtZA3JJ7+x+gXiMWaMKNRGH5CjSn2fppe9OwWqwHKqh6hUq8l4iLnjXQ4jPQMvcgX2llCyOxRcD7PxQh0CjBhQn2V8/Hjdu9VivgyWG8lk8q1ZscJPM/eOD5YblfcizgaqM6Kuw1Sk5QQWHD1cs5H2F/lYlAH7jg==\",\"SigningCertURL\" : \"https://sns.us-west-2.amazonaws.com/SimpleNotificationService-a86cb10b4e1f29c941702d737128f7b6.pem\",\"UnsubscribeURL\" : \"https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:535996888546:willco21-ses-bounce-complaint-test:6644b480-a3fe-4f33-87a3-694f991dd86f\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "35",
+        "SentTimestamp": "1580652087224",
+        "SenderId": "AIDAIYLAVTDLUXBIEIX46",
+        "ApproximateFirstReceiveTimestamp": "1580652087224"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "0ab0d8c8c3a2ddb95f1abc1ce2f45a8a",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-west-2:535996888546:willco21-suppression-auto-register",
+      "awsRegion": "us-west-2"
+    }
+  ]
+}

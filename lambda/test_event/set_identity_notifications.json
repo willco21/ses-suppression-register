@@ -1,0 +1,18 @@
+{
+    "RequestType": "Create",
+    "PhysicalResourceId": "test",
+    "ResourceProperties": {
+        "Identities": ["gmail.com"],
+        "BounceTopic": "arn:aws:sns:us-west-2:123456789012:ses-bounce-complaint-test",
+        "ComplaintTopic": "",
+        "HeadersInBounceNotificationsEnabled": "false",
+        "HeadersInComplaintNotificationsEnabled": "false"
+    },
+    "OldResourceProperties": {
+        "Identities": ["gmail.com", "willco21@gmail.com"],
+        "BounceTopic": "arn:aws:sns:us-west-2:123456789012:ses-bounce-complaint-test",
+        "ComplaintTopic": "",
+        "HeadersInBounceNotificationsEnabled": "false",
+        "HeadersInComplaintNotificationsEnabled": "false"
+    }
+}

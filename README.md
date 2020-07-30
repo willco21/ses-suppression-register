@@ -1,8 +1,4 @@
 
-# What ses_suppression_register?
-
-* refs [Amazon SESを利用した際のバウンス率の抑制-バウンスしたメールアドレスをSuppression Listに自動的に追加する機能](https://docs.google.com/document/d/1Ds3_3ufIdhw6g8g6e-_blD4S18MnmlWy1s-96yFXwnI/edit#heading=h.9rndut2y9t0)
-
 # Directory
 
 ```
